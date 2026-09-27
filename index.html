@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>初中数学自动出卷系统</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<style>
+  #actModal{position:fixed;inset:0;background:rgba(20,28,48,.92);display:none;align-items:center;justify-content:center;z-index:9999}
+  #actModal.show{display:flex}
+  #actModal .card{background:#fff;color:#1f2a44;max-width:440px;width:90%;border-radius:16px;padding:26px 28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  #actModal h2{margin:0 0 6px;font-size:21px}
+  #actModal .hint{font-size:13px;color:#6b7790;margin:10px 0 16px;line-height:1.7}
+  #actModal input{width:100%;padding:11px 12px;font-size:16px;border:1px solid #d6e2ff;border-radius:10px;margin-bottom:12px;text-align:center;letter-spacing:3px;text-transform:uppercase}
+  #actModal .go{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:15px;cursor:pointer;width:100%}
+  #actModal #actMsg{min-height:18px;font-size:13px;margin-top:10px}
+  .toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#1f2a44;color:#fff;padding:9px 16px;border-radius:9px;font-size:14px;z-index:10000;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center}
+  .toast.show{opacity:1}
+  #actEntry{cursor:pointer;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:999px;padding:5px 14px;font-size:13px}
+  #memberBadge{display:none;background:#ffe9b0;color:#8a5300;border-radius:999px;padding:3px 10px;font-size:12px;margin-left:4px}
+</style>
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --line:#e3e8f0; --ink:#1f2a44;
+    --muted:#6b7790; --brand:#2f6df0; --brand2:#1657c8; --ok:#1f9d55; --warn:#e0820c;
+    --paper:#ffffff; --paperline:#0a0a0a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC",-apple-system,"Segoe UI",sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55}
+  header.app{background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;
+       padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  header.app h1{margin:0;font-size:19px;letter-spacing:1px}
+  header.app .sub{font-size:12px;opacity:.9}
+  .wrap{display:flex;gap:16px;padding:16px;align-items:flex-start}
+  .side{width:340px;flex:0 0 340px;background:var(--panel);border:1px solid var(--line);
+       border-radius:12px;padding:16px;position:sticky;top:12px}
+  .main{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .sec{margin-bottom:18px}
+  .sec h3{margin:0 0 10px;font-size:14px;border-left:4px solid var(--brand);padding-left:8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:#eef3ff;border:1px solid #d6e2ff;
+       color:var(--brand2);border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;user-select:none}
+  .chip input{accent-color:var(--brand)}
+  .chip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .topics{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto;border:1px dashed var(--line);padding:8px;border-radius:8px}
+  .topic-group{font-size:12px;color:var(--muted);margin-top:4px}
+  .topic-item{display:flex;align-items:center;gap:6px;font-size:13px;padding:2px 0;margin-left:6px}
+  .field{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:13px}
+  .field label{width:84px;color:var(--muted);flex:0 0 84px}
+  .field input[type=text],.field input[type=number]{flex:1;border:1px solid var(--line);border-radius:7px;
+       padding:6px 8px;font-size:13px;background:#fff;color:var(--ink)}
+  .diffrow{display:flex;gap:8px}
+  .diffrow .field{flex:1}
+  .diffrow .field label{width:auto}
+  .btn{background:var(--brand);color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:14px;
+       cursor:pointer;font-family:inherit}
+  .btn:hover{background:var(--brand2)}
+  .btn.ghost{background:#eef3ff;color:var(--brand2);border:1px solid #d6e2ff}
+  .btn.sm{padding:6px 10px;font-size:13px}
+  .stats{font-size:12px;color:var(--muted);background:#f7f9fc;border:1px solid var(--line);
+       border-radius:8px;padding:8px 10px;margin-top:6px}
+  .stats b{color:var(--ink)}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab{padding:7px 14px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:13px;background:#fff}
+  .tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .paper{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:28px 34px;
+        max-width:820px;margin:0 auto;color:#111}
+  .paper .phead{text-align:center;margin-bottom:10px}
+  .paper .ptitle{font-size:20px;font-weight:700;letter-spacing:1px}
+  .paper .pmeta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:13px;margin:8px 0 4px;
+        border-bottom:1.5px solid var(--paperline);padding-bottom:8px}
+  .paper .pinfo{font-size:13px;margin:8px 0;display:flex;gap:18px;flex-wrap:wrap}
+  .paper .sech{font-weight:700;margin:14px 0 6px;font-size:15px}
+  .q{display:flex;gap:8px;margin:9px 0;font-size:14px;line-height:1.7;break-inside:avoid}
+  .q .n{flex:0 0 26px;text-align:right;color:#333}
+  .q .b{flex:1}
+  .opts{display:flex;flex-wrap:wrap;gap:4px 22px;margin:3px 0 0 0}
+  .opt{display:inline-flex;gap:4px}
+  .blank{border-bottom:1px solid #333;display:inline-block;min-width:46px;height:18px;margin:0 2px;vertical-align:middle}
+  .ans{color:#b00020;font-size:13px;margin-top:2px}
+  .ans b{color:#b00020}
+  .keytable{margin-top:14px;border-top:1.5px solid var(--paperline);padding-top:8px;font-size:13px}
+  .warn{background:#fff5e6;border:1px solid #ffd9a0;color:#8a5300;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+  .hidden{display:none!important}
+  @media (max-width:900px){.wrap{flex-direction:column}.side{width:100%;flex:none;position:static}}
+  @media print{
+    body{background:#fff}
+    header.app,.side,.tabs,.toolbar,.nonprint{display:none!important}
+    .wrap{padding:0;display:block}
+    .main,.paper{border:none;border-radius:0;padding:0;max-width:none}
+    body.print-stu .paper.teacher{display:none!important}
+    body.print-tea .paper.student{display:none!important}
+    .paper{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+<header class="app">
+  <div>
+    <h1>初中数学自动出卷系统</h1>
+    <div class="sub">内置题库 · 按知识点+难度抽题 · 学生版/教师版双卷 · 离线可跑</div>
+  </div>
+  <div class="sub" style="display:flex;align-items:center;gap:10px">
+    <span>v2.0 · 题库 245 题</span>
+    <span id="memberBadge">已激活</span>
+    <span id="actEntry" onclick="openAct()">👑 会员激活</span>
+  </div>
+</header>
+
+<div id="actModal">
+  <div class="card">
+    <h2>数学出卷 · 会员激活</h2>
+    <div class="hint">请输入管理员提供的激活码（形如 HJY3-XXXXXX）。激活后解锁全部出卷与导出功能；未激活无法使用本工具。</div>
+    <input id="actInput" placeholder="HJY3-******" maxlength="24" autocomplete="off">
+    <button class="go" onclick="doActivate()">激活</button>
+    <div id="actMsg"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- 左侧设置 -->
+  <aside class="side">
+    <div class="sec">
+      <h3>① 选择年级</h3>
+      <div class="row" id="gradeRow"></div>
+    </div>
+
+    <div class="sec">
+      <h3>② 选择知识点（不选=对应年级全部）</h3>
+      <div class="topics" id="topicBox"></div>
+    </div>
+
+    <div class="sec">
+      <h3>③ 难度配比（题数）</h3>
+      <div class="diffrow">
+        <div class="field"><label>基础</label><input type="number" id="dEasy" value="8" min="0"></div>
+        <div class="field"><label>中等</label><input type="number" id="dMid" value="8" min="0"></div>
+        <div class="field"><label>拔高</label><input type="number" id="dHard" value="4" min="0"></div>
+      </div>
+      <div class="stats" id="poolStats">请先选择年级/知识点</div>
+    </div>
+
+    <div class="sec">
+      <h3>③-扩展 卷型模板与出卷顺序</h3>
+      <div class="field"><label>卷型模板</label>
+        <select id="tpl" style="flex:1;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:13px">
+          <option value="custom">自定义（手动设难度）</option>
+          <option value="week">周测（基础6/中等4）</option>
+          <option value="month">月考（基础10/中等10/拔高4）</option>
+          <option value="final">期末（基础14/中等14/拔高8）</option>
+        </select>
+      </div>
+      <div class="field"><label>出卷顺序</label>
+        <span style="flex:1;font-size:13px">
+          <label style="width:auto;margin-right:14px"><input type="radio" name="order" value="random" checked> 随机抽题</label>
+          <label style="width:auto"><input type="radio" name="order" value="seq"> 按章节顺序</label>
+        </span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>④ 卷头信息</h3>
+      <div class="field"><label>学校</label><input type="text" id="fSchool" value="某某中学"></div>
+      <div class="field"><label>年级/班级</label><input type="text" id="fClass" value="八年级（3）班"></div>
+      <div class="field"><label>姓名</label><input type="text" id="fName" value="__________"></div>
+      <div class="field"><label>学号</label><input type="text" id="fNo" value="__________"></div>
+      <div class="field"><label>满分</label><input type="number" id="fFull" value="100" min="0"></div>
+      <div class="field"><label>考试时间</label><input type="text" id="fTime" value="90 分钟"></div>
+    </div>
+
+    <div class="sec">
+      <button class="btn" id="genBtn" style="width:100%">生成试卷</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost sm" id="resetBtn" style="width:100%">恢复默认设置</button>
+    </div>
+  </aside>
+
+  <!-- 右侧预览 -->
+  <main class="main">
+    <div class="tabs">
+      <div class="tab on" data-v="student" id="tabStu">学生版（无答案）</div>
+      <div class="tab" data-v="teacher" id="tabTea">教师版（含答案）</div>
+    </div>
+    <div class="toolbar nonprint">
+      <button class="btn sm" id="printStu">打印/存PDF · 学生版</button>
+      <button class="btn sm" id="printTea">打印/存PDF · 教师版</button>
+      <button class="btn ghost sm" id="docxStu">导出 Word · 学生版</button>
+      <button class="btn ghost sm" id="docxTea">导出 Word · 教师版</button>
+    </div>
+    <div id="previewArea">
+      <div class="paper student" id="paperStu"></div>
+      <div class="paper teacher hidden" id="paperTea"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   题库：初中数学 七/八/九 核心章节，答案已核验
+   字段：g年级(7/8/9) t知识点 d难度(基础/中等/拔高)
+        type题型(选择/填空/解答) stem题干 options选项 answer答案 solution解析
+   选择题 answer 为正确选项字母 A/B/C/D
+   ============================================================ */
+const BANK = [
+  // ---------- 七年级 ----------
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"下列各数中，是负数的是（ ）。",options:["0","3","-2","1/2"],answer:"C"},
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"-5 的相反数是（ ）。",options:["5","-5","1/5","-1/5"],answer:"A"},
+  {g:7,t:"有理数",d:"基础",type:"填空",stem:"|-7| = ______。",answer:"7"},
+  {g:7,t:"有理数",d:"中等",type:"选择",stem:"数轴上表示 -3 的点到原点的距离是（ ）。",options:["3","-3","1/3","-1/3"],answer:"A"},
+  {g:7,t:"有理数",d:"基础",type:"解答",stem:"计算：(-12) + 7 = ______。",answer:"-5"},
+  {g:7,t:"有理数",d:"中等",type:"解答",stem:"计算：(-3) × (-4) - 8 ÷ (-2) = ______。",answer:"12 + 4 = 16，结果 16"},
+
+  {g:7,t:"整式加减",d:"基础",type:"选择",stem:"下列各式中，是同类项的是（ ）。",options:["2x 与 3y","x² 与 2x","3ab 与 -5ab","a²b 与 ab²"],answer:"C"},
+  {g:7,t:"整式加减",d:"基础",type:"填空",stem:"化简：3a + 2a = ______。",answer:"5a"},
+  {g:7,t:"整式加减",d:"中等",type:"解答",stem:"化简：3x² - 2x + 4x² - 5x = ______。",answer:"7x² - 7x"},
+  {g:7,t:"整式加减",d:"基础",type:"填空",stem:"单项式 -3x²y 的系数是 ______。",answer:"-3"},
+
+  {g:7,t:"一元一次方程",d:"基础",type:"选择",stem:"方程 2x - 6 = 0 的解是（ ）。",options:["x=3","x=-3","x=2","x=-2"],answer:"A"},
+  {g:7,t:"一元一次方程",d:"中等",type:"解答",stem:"解方程：3x + 5 = 2x - 1。",answer:"移项得 3x - 2x = -1 - 5，x = -6"},
+  {g:7,t:"一元一次方程",d:"拔高",type:"解答",stem:"甲、乙两人相距 30 km，相向而行，甲速 4 km/h，乙速 6 km/h，几小时后相遇？",answer:"30 ÷ (4+6) = 3，3 小时相遇"},
+  {g:7,t:"一元一次方程",d:"中等",type:"解答",stem:"某商品进价 80 元，标价 120 元，打 x 折后利润率为 20%，求 x。",answer:"售价=80×1.2=96；120×(x/10)=96，x=8，即打 8 折"},
+  {g:7,t:"一元一次方程",d:"基础",type:"解答",stem:"一个数 x 的 3 倍减 7 等于 8，求 x。",answer:"3x - 7 = 8，3x = 15，x = 5"},
+
+  {g:7,t:"几何图形初步",d:"基础",type:"选择",stem:"下列图形中，是立体图形的是（ ）。",options:["三角形","长方形","正方体","线段"],answer:"C"},
+  {g:7,t:"几何图形初步",d:"基础",type:"填空",stem:"一个锐角的余角是 30°，这个角是 ______°。",answer:"60"},
+  {g:7,t:"几何图形初步",d:"中等",type:"选择",stem:"过两点可以画（ ）条直线。",options:["0","1","2","无数条"],answer:"B"},
+
+  {g:7,t:"二元一次方程组",d:"基础",type:"选择",stem:"下列是二元一次方程组的是（ ）。",options:["x+y=1，1/x+y=2","x+y=1，y+z=2","x+y=1，x-y=0","x²+y=1"],answer:"C"},
+  {g:7,t:"二元一次方程组",d:"中等",type:"解答",stem:"解方程组：x + y = 5，x - y = 1。",answer:"两式相加得 2x=6，x=3；代入得 y=2。解：x=3，y=2"},
+  {g:7,t:"二元一次方程组",d:"拔高",type:"解答",stem:"买 3 支笔和 2 个本共 19 元，2 支笔和 3 个本共 21 元，求笔和本的单价。",answer:"设笔 a 元、本 b 元：3a+2b=19，2a+3b=21；解得 a=3，b=5。笔 3 元，本 5 元"},
+
+  {g:7,t:"不等式",d:"基础",type:"选择",stem:"不等式 2x > 6 的解集是（ ）。",options:["x>3","x<3","x>2","x<-3"],answer:"A"},
+  {g:7,t:"不等式",d:"中等",type:"解答",stem:"解不等式：3x - 5 ≤ 2x + 1。",answer:"移项得 x ≤ 6"},
+
+  {g:7,t:"数据收集",d:"基础",type:"选择",stem:"要反映各部分在总体中所占比例，应画（ ）。",options:["条形图","折线图","扇形图","直方图"],answer:"C"},
+
+  // ---------- 八年级 ----------
+  {g:8,t:"三角形与全等",d:"基础",type:"选择",stem:"三角形内角和是（ ）。",options:["90°","180°","360°","270°"],answer:"B"},
+  {g:8,t:"三角形与全等",d:"中等",type:"选择",stem:"下列各组线段能组成三角形的是（ ）。",options:["2，3，6","3，4，5","1，2，3","5，5，11"],answer:"B"},
+  {g:8,t:"三角形与全等",d:"基础",type:"填空",stem:"等腰三角形两边长分别为 3 和 7，周长是 ______。",answer:"17（腰只能是 7，3+7+7=17）"},
+  {g:8,t:"三角形与全等",d:"中等",type:"解答",stem:"已知△ABC ≌ △DEF，AB=5，BC=6，AC=7，求△DEF 的周长。",answer:"全等三角形周长相等，5+6+7=18，周长为 18"},
+  {g:8,t:"三角形与全等",d:"拔高",type:"选择",stem:"下列命题正确的是（ ）。",options:["全等三角形面积相等","面积相等的三角形全等","周长相等的三角形全等","以上都不对"],answer:"A"},
+
+  {g:8,t:"轴对称",d:"基础",type:"选择",stem:"下列图形中，是轴对称图形的是（ ）。",options:["平行四边形","任意三角形","等腰三角形","一般梯形"],answer:"C"},
+  {g:8,t:"轴对称",d:"基础",type:"填空",stem:"线段垂直平分线上的点到线段两端距离 ______。",answer:"相等"},
+
+  {g:8,t:"整式乘法与因式分解",d:"基础",type:"解答",stem:"计算：(a³)² = ______。",answer:"a⁶"},
+  {g:8,t:"整式乘法与因式分解",d:"基础",type:"解答",stem:"计算：(x+2)(x-3) = ______。",answer:"x² - x - 6"},
+  {g:8,t:"整式乘法与因式分解",d:"中等",type:"填空",stem:"因式分解：x² - 9 = ______。",answer:"(x+3)(x-3)"},
+  {g:8,t:"整式乘法与因式分解",d:"拔高",type:"填空",stem:"因式分解：x² + 4x + 4 = ______。",answer:"(x+2)²"},
+
+  {g:8,t:"分式",d:"基础",type:"选择",stem:"要使分式 1/(x-2) 有意义，x 应满足（ ）。",options:["x≠2","x=2","x≠0","x>2"],answer:"A"},
+  {g:8,t:"分式",d:"中等",type:"解答",stem:"化简：(x²-1)/(x+1) = ______。",answer:"(x-1)(x+1)/(x+1) = x-1"},
+  {g:8,t:"分式",d:"中等",type:"解答",stem:"解方程：2/(x-1) = 1/x。",answer:"交叉相乘 2x = x-1，x = -1；检验 x=-1 时分母不为 0，故 x=-1"},
+  {g:8,t:"分式",d:"中等",type:"选择",stem:"当 x=2 时，分式 (x²-4)/(x-2) 的值为（ ）。",options:["0","4","2","无意义"],answer:"B",solution:"化简为 x+2，代入 x=2 得 4"},
+
+  {g:8,t:"二次根式",d:"基础",type:"选择",stem:"二次根式 √x 在实数范围内有意义，x 的取值范围是（ ）。",options:["x>0","x≥0","x≠0","x≤0"],answer:"B"},
+  {g:8,t:"二次根式",d:"基础",type:"解答",stem:"化简：√16 = ______。",answer:"4"},
+  {g:8,t:"二次根式",d:"中等",type:"解答",stem:"计算：√18 + √8 = ______。",answer:"3√2 + 2√2 = 5√2"},
+
+  {g:8,t:"勾股定理",d:"基础",type:"填空",stem:"直角三角形两直角边分别为 3 和 4，斜边 = ______。",answer:"5"},
+  {g:8,t:"勾股定理",d:"中等",type:"解答",stem:"旗杆高 8 m，绳子拉到距杆底 6 m 处固定，求绳子长度。",answer:"√(8²+6²)=√100=10，绳长 10 m"},
+  {g:8,t:"勾股定理",d:"拔高",type:"选择",stem:"以下各组数不是勾股数的是（ ）。",options:["3，4，5","5，12，13","6，8，10","2，3，4"],answer:"D"},
+  {g:8,t:"勾股定理",d:"中等",type:"填空",stem:"直角三角形的斜边为 13，一直角边为 5，另一直角边 = ______。",answer:"12"},
+
+  {g:8,t:"平行四边形(四边形)",d:"基础",type:"选择",stem:"平行四边形对边（ ）。",options:["平行且相等","相等但不平行","平行但不相等","互相垂直"],answer:"A"},
+  {g:8,t:"平行四边形(四边形)",d:"中等",type:"填空",stem:"矩形对角线长为 10，一边长为 6，另一边长 = ______。",answer:"8（√(10²-6²)=8）"},
+  {g:8,t:"平行四边形(四边形)",d:"拔高",type:"选择",stem:"菱形面积为 24，一条对角线长为 6，另一条对角线长为（ ）。",options:["4","8","12","16"],answer:"B",solution:"面积=对角线乘积÷2，故另一条=8"},
+
+  {g:8,t:"一次函数",d:"基础",type:"选择",stem:"下列函数中，是一次函数的是（ ）。",options:["y=x²","y=2x+1","y=1/x","y=√x"],answer:"B"},
+  {g:8,t:"一次函数",d:"中等",type:"填空",stem:"直线 y = 2x - 3 与 y 轴交点坐标是 ______。",answer:"(0，-3)"},
+  {g:8,t:"一次函数",d:"拔高",type:"解答",stem:"一次函数 y = kx + b 经过 (1,3) 和 (2,5)，求解析式。",answer:"k=(5-3)/(2-1)=2，b=3-2=1，y=2x+1"},
+  {g:8,t:"一次函数",d:"基础",type:"填空",stem:"正比例函数 y = 3x 经过点 (1，______)。",answer:"3"},
+
+  // ---------- 九年级 ----------
+  {g:9,t:"一元二次方程",d:"基础",type:"选择",stem:"下列方程中，是一元二次方程的是（ ）。",options:["x+1=0","x²-2x=0","x²+1/x=0","2x=3"],answer:"B"},
+  {g:9,t:"一元二次方程",d:"基础",type:"填空",stem:"方程 x² = 4 的根是 ______。",answer:"x = ±2"},
+  {g:9,t:"一元二次方程",d:"中等",type:"解答",stem:"用配方法解方程：x² - 4x - 5 = 0。",answer:"(x-2)² = 9，x-2 = ±3，x = 5 或 x = -1"},
+  {g:9,t:"一元二次方程",d:"中等",type:"解答",stem:"用公式法解方程：x² - 3x - 4 = 0。",answer:"Δ=9+16=25，x=(3±5)/2，x=4 或 x=-1"},
+  {g:9,t:"一元二次方程",d:"拔高",type:"解答",stem:"矩形长比宽多 2，面积为 15，求长和宽。",answer:"设宽 x，则 x(x+2)=15，x²+2x-15=0，(x+5)(x-3)=0，宽 3，长 5"},
+  {g:9,t:"一元二次方程",d:"中等",type:"解答",stem:"解方程：2x² - 4x = 0。",answer:"2x(x-2)=0，x=0 或 x=2"},
+
+  {g:9,t:"二次函数",d:"基础",type:"选择",stem:"抛物线 y = x² 的开口方向是（ ）。",options:["向上","向下","向左","向右"],answer:"A"},
+  {g:9,t:"二次函数",d:"中等",type:"填空",stem:"抛物线 y = (x-1)² + 2 的顶点坐标是 ______。",answer:"(1，2)"},
+  {g:9,t:"二次函数",d:"拔高",type:"解答",stem:"二次函数 y = -x² + 2x + 3，求它与 x 轴交点及最大值。",answer:"令 y=0：x²-2x-3=0，(x-3)(x+1)=0，交点(-1,0)、(3,0)；顶点 x=1 时 y=4，最大值 4"},
+  {g:9,t:"二次函数",d:"中等",type:"选择",stem:"抛物线 y = x² - 4x + 3 与 x 轴交点的横坐标分别是（ ）。",options:["1，3","-1，3","1，-3","-1，-3"],answer:"A",solution:"因式分解 (x-1)(x-3)=0"},
+
+  {g:9,t:"旋转",d:"基础",type:"选择",stem:"图形旋转不改变（ ）。",options:["形状和大小","位置","方向","以上都改变"],answer:"A"},
+  {g:9,t:"旋转",d:"基础",type:"填空",stem:"正三角形旋转对称的最小旋转角是 ______°。",answer:"120"},
+
+  {g:9,t:"圆",d:"基础",type:"选择",stem:"圆的周长公式 C =（ ）。",options:["πr","2πr","πd²","2πd"],answer:"B"},
+  {g:9,t:"圆",d:"中等",type:"填空",stem:"半径为 3 的圆，面积 = ______。",answer:"9π"},
+  {g:9,t:"圆",d:"拔高",type:"选择",stem:"同圆中，相等的弦所对的圆周角（ ）。",options:["相等","互补","相等或互补","无关"],answer:"C"},
+  {g:9,t:"圆",d:"中等",type:"填空",stem:"圆心角为 90° 的扇形，占整个圆面积的 ______（填分数）。",answer:"1/4"},
+  {g:9,t:"圆",d:"中等",type:"选择",stem:"半径为 5 的圆中，弦长为 8，则弦心距为（ ）。",options:["3","4","5","6"],answer:"A",solution:"半弦 4，√(5²-4²)=3"},
+
+  {g:9,t:"相似",d:"基础",type:"选择",stem:"若 a/b = c/d，则下列成立的是（ ）。",options:["ad=bc","a+b=c+d","a=c","b=d"],answer:"A"},
+  {g:9,t:"相似",d:"中等",type:"解答",stem:"△ABC ∽ △DEF，相似比为 2:3，若 AB=4，求 DE。",answer:"DE = AB × (3/2) = 6"},
+  {g:9,t:"相似",d:"拔高",type:"解答",stem:"身高 1.6 m 的人影长 2 m，同一时刻旗杆影长 10 m，求旗杆高。",answer:"1.6/2 = h/10，h = 8 m"},
+
+  {g:9,t:"锐角三角函数",d:"基础",type:"填空",stem:"sin30° = ______。",answer:"1/2"},
+  {g:9,t:"锐角三角函数",d:"基础",type:"填空",stem:"在 Rt△ABC 中，∠C=90°，tanA = 对边 / ______。",answer:"邻边"},
+  {g:9,t:"锐角三角函数",d:"中等",type:"解答",stem:"斜坡坡角为 30°，坡长 20 m，求坡高。",answer:"20 × sin30° = 10 m"},
+  {g:9,t:"锐角三角函数",d:"拔高",type:"解答",stem:"在距塔底 30 m 处测得塔顶仰角为 60°，求塔高。",answer:"30 × tan60° = 30√3 m"},
+
+  {g:9,t:"概率",d:"基础",type:"选择",stem:"抛一枚均匀硬币，正面朝上的概率是（ ）。",options:["0","1/2","1","1/4"],answer:"B"},
+  {g:9,t:"概率",d:"中等",type:"填空",stem:"掷一枚均匀骰子，点数为偶数的概率是 ______。",answer:"1/2"},
+  {g:9,t:"概率",d:"拔高",type:"解答",stem:"袋中装有 2 个红球、3 个白球，随机摸出 2 个球，求两球同色的概率。",answer:"总情况 C(5,2)=10；同色：2红 C(2,2)=1 或 3白 C(3,2)=3；概率=(1+3)/10=2/5"},
+
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"计算：-3 + 7 =（ ）。",options:["-10","10","-4","4"],answer:"D"},
+  {g:7,t:"几何图形初步",d:"基础",type:"选择",stem:"下列角中，是钝角的是（ ）。",options:["30°","60°","90°","120°"],answer:"D"},
+  {g:8,t:"分式",d:"基础",type:"选择",stem:"化简：(a²-b²)/(a-b) =（ ）。",options:["a-b","-a-b","2a","a+b"],answer:"D"},
+  {g:8,t:"一次函数",d:"中等",type:"选择",stem:"直线 y = -2x + 1 经过的象限是（ ）。",options:["一、二、三","一、三、四","二、三、四","一、二、四"],answer:"D"},
+  {g:9,t:"圆",d:"基础",type:"选择",stem:"半圆所对的圆周角是（ ）。",options:["45°","60°","120°","90°"],answer:"D"},
+  {g:9,t:"相似",d:"中等",type:"选择",stem:"两个相似三角形相似比为 2:3，则面积比为（ ）。",options:["2:3","3:2","9:4","4:9"],answer:"D"},
+  {g:9,t:"概率",d:"基础",type:"选择",stem:"掷两枚均匀硬币，恰有一枚正面朝上的概率是（ ）。",options:["0","1/4","1/2","3/4"],answer:"C"},
+
+  /* ===== 题库扩充（第一批） ===== */
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"计算 $15 + (-8) =$（ ）。",options:["7","-7","23","-23"],answer:"A"},
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"$-\\frac{1}{2}$ 的倒数是（ ）。",options:["-2","2","$\\frac{1}{2}$","$-\\frac{1}{2}$"],answer:"A"},
+  {g:7,t:"有理数",d:"基础",type:"填空",stem:"若 $a>0,b<0$ 且 $|a|<|b|$，则 $a+b$ ____ 0。",answer:"<（或负数）"},
+  {g:7,t:"有理数",d:"中等",type:"填空",stem:"数轴上点 A 表示 -2，向右移动 5 个单位到点 B，则 B 表示的数是 ____。",answer:"3"},
+  {g:7,t:"有理数",d:"基础",type:"解答",stem:"计算：$|-3| + |4| = $ ____。",answer:"7"},
+  {g:7,t:"有理数",d:"中等",type:"选择",stem:"下列各数中，是无理数的是（ ）。",options:["0","$\\frac{1}{3}$","$\\sqrt{2}$","-2"],answer:"C"},
+  {g:7,t:"有理数",d:"中等",type:"解答",stem:"计算：$(-2)^2 - 3^2 = $ ____。",answer:"4 - 9 = -5"},
+  {g:7,t:"整式加减",d:"基础",type:"选择",stem:"多项式 $2x^2 - 3x + 1$ 的项数是（ ）。",options:["1","2","3","4"],answer:"C"},
+  {g:7,t:"整式加减",d:"基础",type:"填空",stem:"去括号：$-(2x - 3) = $ ____。",answer:"-2x + 3"},
+  {g:7,t:"整式加减",d:"中等",type:"解答",stem:"先化简，再求值：$2(x-1) - (x+2)$，其中 $x=3$。",answer:"化简得 $x-4$，代入 $x=3$ 得 -1"},
+  {g:7,t:"整式加减",d:"中等",type:"选择",stem:"若 $3x^n y$ 与 $-2x^3 y$ 是同类项，则 $n=$（ ）。",options:["1","2","3","4"],answer:"C"},
+  {g:7,t:"整式加减",d:"中等",type:"填空",stem:"已知 $a+b=5,ab=2$，则 $a^2+b^2 = $ ____。",answer:"21（$(a+b)^2-2ab=25-4$）"},
+  {g:7,t:"一元一次方程",d:"基础",type:"选择",stem:"方程 $\\frac{x}{2}=3$ 的解是（ ）。",options:["6","1.5","-6","3"],answer:"A"},
+  {g:7,t:"一元一次方程",d:"基础",type:"填空",stem:"若 $2x-1=5$，则 $x = $ ____。",answer:"3"},
+  {g:7,t:"一元一次方程",d:"中等",type:"解答",stem:"解方程：$2(x-1) = 3x - 4$。",answer:"$2x-2=3x-4$，移项得 $x=2$"},
+  {g:7,t:"一元一次方程",d:"拔高",type:"解答",stem:"某商品按标价八折出售仍可获利 20%，若进价为 100 元，求标价。",answer:"售价 $=100\\times1.2=120$；标价 $\\times0.8=120$，标价 $=150$ 元"},
+  {g:7,t:"一元一次方程",d:"中等",type:"选择",stem:"若关于 $x$ 的方程 $2x+a=7$ 的解为 $x=2$，则 $a=$（ ）。",options:["3","-3","11","-11"],answer:"A"},
+  {g:7,t:"几何图形初步",d:"基础",type:"选择",stem:"35°角的余角是（ ）。",options:["55°","145°","35°","65°"],answer:"A"},
+  {g:7,t:"几何图形初步",d:"基础",type:"填空",stem:"一个角是 120°，它的补角是 ____°。",answer:"60"},
+  {g:7,t:"几何图形初步",d:"中等",type:"选择",stem:"两点之间（ ）最短。",options:["直线","线段","射线","折线"],answer:"B"},
+  {g:7,t:"几何图形初步",d:"基础",type:"解答",stem:"已知 $\\angle A=40°$ 且 $\\angle A$ 与 $\\angle B$ 互补，求 $\\angle B$。",answer:"$\\angle B = 180° - 40° = 140°$"},
+  {g:7,t:"二元一次方程组",d:"基础",type:"选择",stem:"方程 $x+2y=5$ 的正整数解有（ ）组。",options:["1","2","3","4"],answer:"B",solution:"正整数解有 (3,1)、(1,2) 共 2 组"},
+  {g:7,t:"二元一次方程组",d:"中等",type:"解答",stem:"解方程组：$\\begin{cases}x+y=3\\\\x-y=1\\end{cases}$。",answer:"两式相加得 $2x=4,x=2$；代入得 $y=1$"},
+  {g:7,t:"二元一次方程组",d:"拔高",type:"解答",stem:"甲、乙共 50 人，甲调 5 人到乙后两数相等，求原来甲、乙各多少人。",answer:"甲-5=乙+5，甲+乙=50，解得 甲=30，乙=20"},
+  {g:7,t:"不等式",d:"基础",type:"选择",stem:"不等式 $-x>2$ 的解集是（ ）。",options:["$x>-2$","$x<-2$","$x>2$","$x<2$"],answer:"B"},
+  {g:7,t:"不等式",d:"中等",type:"填空",stem:"不等式 $2x-1<5$ 的正整数解是 ____。",answer:"1，2"},
+  {g:7,t:"不等式",d:"中等",type:"解答",stem:"解不等式组：$\\begin{cases}x+1>0\\\\2x\\le 4\\end{cases}$。",answer:"$x>-1$ 且 $x\\le 2$，即 $-1<x\\le 2$"},
+  {g:7,t:"数据收集",d:"基础",type:"选择",stem:"为了解全校学生身高，抽取 200 名学生，样本是（ ）。",options:["全校学生","200 名学生","200","每名学生"],answer:"B"},
+  {g:7,t:"数据收集",d:"基础",type:"填空",stem:"数据 2,3,3,4,5 的众数是 ____。",answer:"3"},
+  {g:8,t:"三角形与全等",d:"基础",type:"选择",stem:"三角形任意两边之和（ ）第三边。",options:["大于","小于","等于","不大于"],answer:"A"},
+  {g:8,t:"三角形与全等",d:"基础",type:"填空",stem:"全等三角形的对应角 ____。",answer:"相等"},
+  {g:8,t:"三角形与全等",d:"中等",type:"解答",stem:"已知 $\\triangle ABC\\cong\\triangle DEF$，若 $\\angle A=50°,\\angle B=60°$，求 $\\angle F$。",answer:"$\\angle C=70°$，$\\angle F=\\angle C=70°$"},
+  {g:8,t:"三角形与全等",d:"中等",type:"选择",stem:"下列条件能判定 $\\triangle ABC\\cong\\triangle DEF$ 的是（ ）。",options:["SSA","SAS","AA","SS"],answer:"B"},
+  {g:8,t:"三角形与全等",d:"中等",type:"填空",stem:"等腰三角形顶角为 80°，则底角 = ____°。",answer:"50"},
+  {g:8,t:"三角形与全等",d:"拔高",type:"解答",stem:"直角三角形两锐角互余，若一个锐角为 35°，求另一个锐角。",answer:"90° - 35° = 55°"},
+  {g:8,t:"轴对称",d:"基础",type:"选择",stem:"下列图形中，对称轴最多的是（ ）。",options:["等腰三角形","等边三角形","长方形","正方形"],answer:"D"},
+  {g:8,t:"轴对称",d:"基础",type:"填空",stem:"点 $(2,3)$ 关于 $x$ 轴对称的点的坐标是 ____。",answer:"(2,-3)"},
+  {g:8,t:"轴对称",d:"基础",type:"解答",stem:"简述作线段 AB 垂直平分线的方法。",answer:"分别以 A、B 为圆心，大于 $\\frac{AB}{2}$ 为半径画弧，两弧交于 C、D，直线 CD 即垂直平分线"},
+  {g:8,t:"整式乘法与因式分解",d:"基础",type:"选择",stem:"计算 $a\\cdot a^3 =$（ ）。",options:["$a^3$","$a^4$","$2a^4$","$a^{12}$"],answer:"B"},
+  {g:8,t:"整式乘法与因式分解",d:"基础",type:"填空",stem:"$(2x)^3 = $ ____。",answer:"$8x^3$"},
+  {g:8,t:"整式乘法与因式分解",d:"中等",type:"解答",stem:"因式分解：$2x^2 - 8 = $ ____。",answer:"$2(x^2-4)=2(x+2)(x-2)$"},
+  {g:8,t:"整式乘法与因式分解",d:"中等",type:"填空",stem:"计算：$(a+b)^2 - (a-b)^2 = $ ____。",answer:"4ab"},
+  {g:8,t:"整式乘法与因式分解",d:"中等",type:"选择",stem:"下列能用完全平方公式分解的是（ ）。",options:["$x^2+x+1$","$x^2+2x+1$","$x^2-2x-1$","$x^2+1$"],answer:"B"},
+  {g:8,t:"分式",d:"基础",type:"选择",stem:"若分式 $\\frac{x}{x+1}$ 的值为 0，则 $x=$（ ）。",options:["0","-1","1","任意值"],answer:"A"},
+  {g:8,t:"分式",d:"基础",type:"填空",stem:"约分：$\\frac{6x}{9y} = $ ____。",answer:"$\\frac{2x}{3y}$"},
+  {g:8,t:"分式",d:"中等",type:"解答",stem:"计算：$\\frac{1}{x+1} + \\frac{1}{x-1} = $ ____。",answer:"$\\frac{2x}{x^2-1}$"},
+  {g:8,t:"分式",d:"中等",type:"选择",stem:"化简 $\\frac{x^2-9}{x-3}$ 的结果是（ ）。",options:["$x+3$","$x-3$","$(x+3)(x-3)$","1"],answer:"A"},
+  {g:8,t:"二次根式",d:"基础",type:"选择",stem:"下列是最简二次根式的是（ ）。",options:["$\\sqrt{8}$","$\\sqrt{\\frac12}$","$\\sqrt{7}$","$\\sqrt{0.5}$"],answer:"C"},
+  {g:8,t:"二次根式",d:"基础",type:"填空",stem:"化简 $\\sqrt{12} = $ ____（化为最简）。",answer:"$2\\sqrt{3}$"},
+  {g:8,t:"二次根式",d:"中等",type:"解答",stem:"计算：$\\sqrt{27} - \\sqrt{3} = $ ____。",answer:"$3\\sqrt{3} - \\sqrt{3} = 2\\sqrt{3}$"},
+  {g:8,t:"二次根式",d:"中等",type:"填空",stem:"若 $\\sqrt{x-2}$ 在实数范围内有意义，则 $x$ 的取值范围是 ____。",answer:"$x\\ge 2$"},
+  {g:8,t:"勾股定理",d:"基础",type:"填空",stem:"等腰直角三角形直角边长为 1，斜边 = ____。",answer:"$\\sqrt{2}$"},
+  {g:8,t:"勾股定理",d:"中等",type:"解答",stem:"长方体长、宽、高分别为 3、4、12，则其体对角线长为 ____。",answer:"$\\sqrt{3^2+4^2+12^2}=\\sqrt{169}=13$"},
+  {g:8,t:"勾股定理",d:"中等",type:"选择",stem:"下列三组数中，能构成直角三角形三边的是（ ）。",options:["1,1,1","3,4,5","2,3,4","5,6,7"],answer:"B"},
+  {g:8,t:"平行四边形(四边形)",d:"基础",type:"选择",stem:"菱形的四条边（ ）。",options:["不相等","相等","对边相等","邻边相等"],answer:"B"},
+  {g:8,t:"平行四边形(四边形)",d:"中等",type:"填空",stem:"正方形边长为 4，面积 = ____。",answer:"16"},
+  {g:8,t:"平行四边形(四边形)",d:"中等",type:"解答",stem:"平行四边形一个内角为 60°，求其邻角。",answer:"邻角 = 180° - 60° = 120°"},
+  {g:8,t:"平行四边形(四边形)",d:"中等",type:"选择",stem:"下列条件能判定四边形是矩形的是（ ）。",options:["对角线互相平分","对角线互相垂直","对角线互相平分且相等","四边相等"],answer:"C"},
+  {g:8,t:"一次函数",d:"基础",type:"选择",stem:"在函数 $y=-3x$ 中，$y$ 随 $x$ 增大而（ ）。",options:["增大","减小","不变","不确定"],answer:"B"},
+  {g:8,t:"一次函数",d:"基础",type:"填空",stem:"点 $(0,0)$ 是否在函数 $y=2x$ 的图象上（填“在”或“不在”）____。",answer:"在"},
+  {g:8,t:"一次函数",d:"中等",type:"解答",stem:"正比例函数 $y=kx$ 经过点 $(2,6)$，求 $k$ 的值。",answer:"$6=2k$，得 $k=3$"},
+  {g:8,t:"一次函数",d:"中等",type:"选择",stem:"直线 $y=3x-2$ 与 $x$ 轴交点的横坐标为（ ）。",options:["$\\frac23$","$-\\frac23$","3","-2"],answer:"A"},
+  {g:9,t:"一元二次方程",d:"基础",type:"选择",stem:"方程 $x^2=2x$ 的根是（ ）。",options:["2","0","0 或 2","无解"],answer:"C"},
+  {g:9,t:"一元二次方程",d:"基础",type:"填空",stem:"用配方法填空：$x^2+6x+\\_\_\_ = (x+3)^2$。",answer:"9"},
+  {g:9,t:"一元二次方程",d:"中等",type:"解答",stem:"解方程：$x^2-5x+6=0$。",answer:"$(x-2)(x-3)=0$，得 $x=2$ 或 $x=3$"},
+  {g:9,t:"一元二次方程",d:"拔高",type:"解答",stem:"某商品连续两次降价 10% 后售价为 81 元，求原价。",answer:"原价 $\\times0.9^2=81$，原价 $=100$ 元"},
+  {g:9,t:"一元二次方程",d:"中等",type:"选择",stem:"判别式 $\\Delta=b^2-4ac$，方程 $x^2+x+1=0$ 根的情况是（ ）。",options:["两不等实根","两相等实根","无实根","一根"],answer:"C"},
+  {g:9,t:"二次函数",d:"基础",type:"选择",stem:"抛物线 $y=2x^2$ 的对称轴是（ ）。",options:["$x$ 轴","$y$ 轴","直线 $x=1$","原点"],answer:"B"},
+  {g:9,t:"二次函数",d:"基础",type:"填空",stem:"函数 $y=x^2-2x$ 的最小值在 $x=$ ____ 时取得。",answer:"1"},
+  {g:9,t:"二次函数",d:"中等",type:"解答",stem:"求抛物线 $y=x^2-2x-3$ 与 $y$ 轴的交点坐标。",answer:"令 $x=0$，得 $y=-3$，交点为 $(0,-3)$"},
+  {g:9,t:"二次函数",d:"中等",type:"选择",stem:"抛物线 $y=-(x-2)^2+1$ 的最大值是（ ）。",options:["1","2","-1","0"],answer:"A"},
+  {g:9,t:"旋转",d:"基础",type:"选择",stem:"正方形绕中心旋转（ ）° 可与自身重合。",options:["45","90","180","360"],answer:"B"},
+  {g:9,t:"旋转",d:"基础",type:"填空",stem:"旋转不改变图形的 ____ 和 ____。",answer:"形状、大小"},
+  {g:9,t:"圆",d:"基础",type:"选择",stem:"半径为 $r$ 的圆面积 $S=$（ ）。",options:["$\\pi r$","$2\\pi r$","$\\pi r^2$","$\\pi d$"],answer:"C"},
+  {g:9,t:"圆",d:"基础",type:"填空",stem:"半径为 2 的圆，周长 = ____（保留 $\\pi$）。",answer:"$4\\pi$"},
+  {g:9,t:"圆",d:"中等",type:"解答",stem:"圆心角为 60° 的扇形，半径为 6，求弧长。",answer:"弧长 $=\\frac{60}{360}\\times2\\pi\\times6 = 2\\pi$"},
+  {g:9,t:"圆",d:"中等",type:"选择",stem:"垂直于弦的直径（ ）。",options:["平分弦","平分弦所对优弧","平分弦所对劣弧","以上都对"],answer:"D"},
+  {g:9,t:"相似",d:"基础",type:"选择",stem:"若 $a:b=3:4$，则 $(a+b):b=$（ ）。",options:["3:4","4:3","7:4","7:3"],answer:"C"},
+  {g:9,t:"相似",d:"中等",type:"填空",stem:"比例尺 1:5000 的图上 2 cm 表示实际距离 ____ m。",answer:"100（$2\\times5000=10000$cm）"},
+  {g:9,t:"相似",d:"中等",type:"解答",stem:"梯形的中位线长为 10，求上、下底之和。",answer:"中位线 $=$（上底+下底）$\\div2=10$，故上下底和为 20"},
+  {g:9,t:"锐角三角函数",d:"基础",type:"填空",stem:"$\\cos60° = $ ____。",answer:"$\\frac12$"},
+  {g:9,t:"锐角三角函数",d:"基础",type:"填空",stem:"$\\tan45° = $ ____。",answer:"1"},
+  {g:9,t:"锐角三角函数",d:"中等",type:"解答",stem:"在 $\\text{Rt}\\triangle ABC$ 中，$\\angle C=90°, a=3, b=4$，求 $c$ 和 $\\sin A$。",answer:"$c=5$，$\\sin A=\\frac35$"},
+  {g:9,t:"锐角三角函数",d:"中等",type:"选择",stem:"斜坡坡度 $i=1:\\sqrt{3}$，则坡角为（ ）。",options:["30°","45°","60°","90°"],answer:"A"},
+  {g:9,t:"概率",d:"基础",type:"选择",stem:"掷一枚均匀骰子，得到奇数的概率是（ ）。",options:["$\\frac16$","$\\frac13$","$\\frac12$","$\\frac23$"],answer:"C"},
+  {g:9,t:"概率",d:"基础",type:"填空",stem:"袋中装有 1 个红球、1 个白球，摸到红球的概率 = ____。",answer:"$\\frac12$"},
+  {g:9,t:"概率",d:"中等",type:"解答",stem:"抛两枚硬币，求至少有一枚正面朝上的概率。",answer:"共 4 种等可能，至少一正面有 3 种，概率 $=\\frac34$"},
+  {g:9,t:"概率",d:"中等",type:"选择",stem:"下列事件中，属于不可能事件的是（ ）。",options:["太阳从东边升起","掷骰子得到 7 点","明天会下雨","买彩票中奖"],answer:"B"},
+
+  /* ===== 题库扩充（第二批） ===== */
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"计算 $-4 - (-2) =$（ ）。",options:["-6","-2","2","6"],answer:"B"},
+  {g:7,t:"有理数",d:"基础",type:"填空",stem:"0 的相反数是 ____。",answer:"0"},
+  {g:7,t:"有理数",d:"中等",type:"填空",stem:"若 $|x|=5$，则 $x = $ ____。",answer:"±5"},
+  {g:7,t:"有理数",d:"基础",type:"解答",stem:"计算：$3 - 7 = $ ____。",answer:"-4"},
+  {g:7,t:"有理数",d:"基础",type:"选择",stem:"温度从 -3℃ 升高 5℃ 后是（ ）。",options:["2℃","-8℃","8℃","-2℃"],answer:"A"},
+  {g:7,t:"整式加减",d:"基础",type:"填空",stem:"$2a\\cdot 3a = $ ____。",answer:"$6a^2$"},
+  {g:7,t:"整式加减",d:"基础",type:"选择",stem:"单项式 $4xy^2$ 的次数是（ ）。",options:["1","2","3","4"],answer:"C"},
+  {g:7,t:"整式加减",d:"中等",type:"解答",stem:"化简：$4x - 2(x - 3) = $ ____。",answer:"$2x+6$"},
+  {g:7,t:"整式加减",d:"中等",type:"填空",stem:"若 $5x^2y^m$ 与 $-3x^ny^3$ 是同类项，则 $m+n = $ ____。",answer:"5"},
+  {g:7,t:"一元一次方程",d:"基础",type:"填空",stem:"方程 $4x=12$ 的解 $x = $ ____。",answer:"3"},
+  {g:7,t:"一元一次方程",d:"中等",type:"解答",stem:"解方程：$5x - 3 = 2x + 6$。",answer:"$3x=9$，得 $x=3$"},
+  {g:7,t:"一元一次方程",d:"中等",type:"选择",stem:"下列移项正确的是（ ）。",options:["$2x+3=5\\to2x=5+3$","$2x-3=5\\to2x=5-3$","$2x+3=5\\to2x=5-3$","$2x-3=5\\to2x=5+3$"],answer:"C"},
+  {g:7,t:"一元一次方程",d:"拔高",type:"解答",stem:"甲、乙相距 120 km，甲先走 1 h 后乙追，甲速 40 km/h，乙速 60 km/h，几小时追上甲？",answer:"设乙追 $t$ h：$40(t+1)=60t$，得 $t=2$ 小时"},
+  {g:7,t:"几何图形初步",d:"基础",type:"选择",stem:"平角等于（ ）。",options:["90°","180°","270°","360°"],answer:"B"},
+  {g:7,t:"几何图形初步",d:"基础",type:"填空",stem:"对顶角相等，若一对顶角为 50°，另一角 = ____。",answer:"50"},
+  {g:7,t:"几何图形初步",d:"基础",type:"解答",stem:"已知 $\\angle1$ 与 $\\angle2$ 互余，$\\angle1=30°$，求 $\\angle2$。",answer:"$\\angle2 = 90° - 30° = 60°$"},
+  {g:7,t:"二元一次方程组",d:"基础",type:"填空",stem:"方程 $x+y=3$ 的一组解中若 $x=1$，则 $y = $ ____。",answer:"2"},
+  {g:7,t:"二元一次方程组",d:"中等",type:"解答",stem:"解方程组：$\\begin{cases}3x+2y=8\\\\x-y=1\\end{cases}$。",answer:"由②得 $x=y+1$，代入①：$3(y+1)+2y=8$，得 $y=1,x=2$"},
+  {g:7,t:"二元一次方程组",d:"中等",type:"选择",stem:"用代入消元法解方程组时，最方便的是先变形（ ）。",options:["系数为 1 的未知数","任意一个","含分数的","含 0 的"],answer:"A"},
+  {g:7,t:"不等式",d:"基础",type:"填空",stem:"不等式 $x+3>5$ 的解集为 $x>$ ____。",answer:"2"},
+  {g:7,t:"不等式",d:"基础",type:"选择",stem:"下列数值中，是不等式 $x>2$ 的解的是（ ）。",options:["1","2","3","0"],answer:"C"},
+  {g:7,t:"不等式",d:"中等",type:"解答",stem:"解不等式：$3x+1 \\ge 2x+4$。",answer:"移项得 $x \\ge 3$"},
+  {g:7,t:"数据收集",d:"基础",type:"选择",stem:"反映数据增减变化趋势，宜用（ ）。",options:["条形图","折线图","扇形图","直方图"],answer:"B"},
+  {g:7,t:"数据收集",d:"基础",type:"填空",stem:"数据 1,2,2,3,4 的中位数是 ____。",answer:"2"},
+  {g:8,t:"三角形与全等",d:"基础",type:"填空",stem:"等边三角形每个内角的度数是 ____°。",answer:"60"},
+  {g:8,t:"三角形与全等",d:"中等",type:"填空",stem:"三角形两边长为 3、7，第三边为整数时最大值是 ____。",answer:"9"},
+  {g:8,t:"三角形与全等",d:"中等",type:"解答",stem:"等腰三角形周长为 20，底为 6，求腰长。",answer:"腰 $= (20-6)\\div2 = 7$"},
+  {g:8,t:"三角形与全等",d:"中等",type:"选择",stem:"下列条件不能判定两个三角形全等的是（ ）。",options:["SSS","SAS","AAS","AAA"],answer:"D"},
+  {g:8,t:"轴对称",d:"基础",type:"填空",stem:"线段有 ____ 条对称轴。",answer:"2"},
+  {g:8,t:"轴对称",d:"基础",type:"填空",stem:"正五边形有 ____ 条对称轴。",answer:"5"},
+  {g:8,t:"整式乘法与因式分解",d:"基础",type:"填空",stem:"$a^5 \\div a^2 = $ ____。",answer:"$a^3$"},
+  {g:8,t:"整式乘法与因式分解",d:"基础",type:"选择",stem:"$(x^2)^3 =$（ ）。",options:["$x^5$","$x^6$","$x^8$","$x^9$"],answer:"B"},
+  {g:8,t:"整式乘法与因式分解",d:"中等",type:"解答",stem:"因式分解：$x^2 - 6x + 9 = $ ____。",answer:"$(x-3)^2$"},
+  {g:8,t:"整式乘法与因式分解",d:"中等",type:"填空",stem:"计算：$(2a-b)(2a+b) = $ ____。",answer:"$4a^2-b^2$"},
+  {g:8,t:"分式",d:"基础",type:"选择",stem:"分式 $\\frac{3}{x^2+1}$ 中 $x$ 取任意实数都（ ）。",options:["有意义","无意义","为零","为正"],answer:"A"},
+  {g:8,t:"分式",d:"基础",type:"填空",stem:"计算：$\\frac{a}{b} \\times \\frac{b}{c} = $ ____。",answer:"$\\frac{a}{c}$"},
+  {g:8,t:"分式",d:"中等",type:"解答",stem:"解方程：$\\frac{1}{x} = \\frac{2}{x+1}$。",answer:"$x+1=2x$，得 $x=1$；检验分母不为 0，故 $x=1$"},
+  {g:8,t:"二次根式",d:"基础",type:"填空",stem:"化简 $\\sqrt{20} = $ ____（最简）。",answer:"$2\\sqrt{5}$"},
+  {g:8,t:"二次根式",d:"中等",type:"选择",stem:"下列等式成立的是（ ）。",options:["$\\sqrt2+\\sqrt3=\\sqrt5$","$\\sqrt8=2\\sqrt2$","$\\sqrt4=\\pm2$","$\\sqrt{2^2}=-2$"],answer:"B"},
+  {g:8,t:"二次根式",d:"中等",type:"解答",stem:"计算：$\\sqrt{50} - \\sqrt{18} = $ ____。",answer:"$5\\sqrt2-3\\sqrt2=2\\sqrt2$"},
+  {g:8,t:"勾股定理",d:"基础",type:"填空",stem:"直角三角形两直角边为 5、12，斜边 = ____。",answer:"13"},
+  {g:8,t:"勾股定理",d:"中等",type:"解答",stem:"楼梯高 3 m、水平距离 4 m，求斜面板长。",answer:"斜边 $=\\sqrt{3^2+4^2}=5$ m"},
+  {g:8,t:"勾股定理",d:"中等",type:"选择",stem:"下列不是勾股数的是（ ）。",options:["8,15,17","7,24,25","9,12,15","10,20,25"],answer:"D"},
+  {g:8,t:"平行四边形(四边形)",d:"基础",type:"填空",stem:"平行四边形周长为 30，一边长为 8，其邻边长为 ____。",answer:"7"},
+  {g:8,t:"平行四边形(四边形)",d:"中等",type:"选择",stem:"矩形、菱形、正方形都具有的性质是（ ）。",options:["四边相等","四角相等","对角线互相平分","对角线互相垂直"],answer:"C"},
+  {g:8,t:"平行四边形(四边形)",d:"中等",type:"解答",stem:"菱形两条对角线长为 6 和 8，求面积。",answer:"面积 $= 6\\times8\\div2 = 24$"},
+  {g:8,t:"一次函数",d:"基础",type:"填空",stem:"直线 $y=-x+4$ 与 $y$ 轴交点是 ____。",answer:"(0,4)"},
+  {g:8,t:"一次函数",d:"中等",type:"选择",stem:"直线 $y=kx+b$ 过点 $(0,2)$、$(1,0)$，则 $k=$（ ）。",options:["2","-2","1","-1"],answer:"B"},
+  {g:8,t:"一次函数",d:"中等",type:"解答",stem:"求直线 $y=2x-4$ 与两坐标轴围成的三角形面积。",answer:"与 $x$ 轴交于 (2,0)，与 $y$ 轴交于 (0,-4)，面积 $=\\frac12\\times2\\times4=4$"},
+  {g:9,t:"一元二次方程",d:"基础",type:"填空",stem:"方程 $(x-1)(x-2)=0$ 的根是 ____。",answer:"1，2"},
+  {g:9,t:"一元二次方程",d:"中等",type:"解答",stem:"解方程：$2x^2 - 8 = 0$。",answer:"$x^2=4$，得 $x=\\pm2$"},
+  {g:9,t:"一元二次方程",d:"中等",type:"选择",stem:"解方程 $x^2-4=0$ 最简便的方法是（ ）。",options:["配方法","公式法","直接开平方法","因式分解法"],answer:"C"},
+  {g:9,t:"一元二次方程",d:"拔高",type:"解答",stem:"矩形花圃长比宽多 4 m，面积为 60 m²，求长、宽。",answer:"设宽 $x$，则 $x(x+4)=60$，解得 $x=6$，长 10、宽 6"},
+  {g:9,t:"二次函数",d:"基础",type:"填空",stem:"二次函数 $y=ax^2+bx+c$（$a\\neq0$）中，若 $a>0$ 则抛物线开口 ____。",answer:"向上"},
+  {g:9,t:"二次函数",d:"中等",type:"解答",stem:"求抛物线 $y=x^2-4$ 与 $x$ 轴的交点坐标。",answer:"令 $y=0$ 得 $x=\\pm2$，交点 $(-2,0),(2,0)$"},
+  {g:9,t:"二次函数",d:"中等",type:"选择",stem:"顶点在 $x$ 轴上的抛物线是（ ）。",options:["$y=x^2$","$y=x^2+1$","$y=x^2-1$","$y=(x-1)^2$"],answer:"D"},
+  {g:9,t:"旋转",d:"基础",type:"填空",stem:"平行四边形的对称中心是它 ____ 的交点。",answer:"对角线"},
+  {g:9,t:"旋转",d:"基础",type:"选择",stem:"下列是中心对称图形的是（ ）。",options:["等边三角形","平行四边形","等腰三角形","正五边形"],answer:"B"},
+  {g:9,t:"圆",d:"基础",type:"填空",stem:"半圆所对的圆周角 = ____°。",answer:"90"},
+  {g:9,t:"圆",d:"中等",type:"选择",stem:"在同圆中，弧长与它所对圆心角（ ）。",options:["成反比","成正比","无关","成平方关系"],answer:"B"},
+  {g:9,t:"圆",d:"中等",type:"解答",stem:"半径为 10 的圆中，弦长为 16，求弦心距。",answer:"半弦为 8，弦心距 $=\\sqrt{10^2-8^2}=6$"},
+  {g:9,t:"相似",d:"基础",type:"选择",stem:"相似三角形的周长比等于（ ）。",options:["相似比","相似比的平方","1","2"],answer:"A"},
+  {g:9,t:"相似",d:"中等",type:"填空",stem:"两个相似三角形相似比为 1:3，则面积比为 ____。",answer:"1:9"},
+  {g:9,t:"相似",d:"中等",type:"解答",stem:"身高 1.8 m 的人影长 3 m，同时一旗杆影长 15 m，求旗杆高。",answer:"$\\frac{1.8}{3}=\\frac{h}{15}$，得 $h=9$ m"},
+  {g:9,t:"锐角三角函数",d:"基础",type:"填空",stem:"$\\sin0° = $ ____。",answer:"0"},
+  {g:9,t:"锐角三角函数",d:"中等",type:"解答",stem:"在 $\\text{Rt}\\triangle ABC$ 中，$\\angle C=90°, c=13, a=5$，求 $b$ 和 $\\sin B$。",answer:"$b=12$，$\\sin B=\\frac{12}{13}$"},
+  {g:9,t:"锐角三角函数",d:"中等",type:"选择",stem:"在 $\\text{Rt}\\triangle$ 中，若 $\\cos A=\\frac35$，则 $\\sin A=$（ ）。",options:["$\\frac35$","$\\frac45$","$\\frac53$","1"],answer:"B"},
+  {g:9,t:"概率",d:"基础",type:"填空",stem:"抛一枚硬币两次都正面朝上的概率 = ____。",answer:"$\\frac14$"},
+  {g:9,t:"概率",d:"基础",type:"选择",stem:"下列是必然事件的是（ ）。",options:["掷骰子得 6 点","三角形内角和为 180°","抽奖中奖","明天下雪"],answer:"B"},
+  {g:9,t:"概率",d:"中等",type:"填空",stem:"袋中 2 红 3 蓝，随机摸 1 球为红球的概率 = ____。",answer:"$\\frac25$"}
+];
+
+/* 年级 → 知识点清单 */
+const GRADE_TOPICS = {
+  7:["有理数","整式加减","一元一次方程","几何图形初步","二元一次方程组","不等式","数据收集"],
+  8:["三角形与全等","轴对称","整式乘法与因式分解","分式","二次根式","勾股定理","平行四边形(四边形)","一次函数"],
+  9:["一元二次方程","二次函数","旋转","圆","相似","锐角三角函数","概率"]
+};
+const GRADE_NAME = {7:"七年级",8:"八年级",9:"九年级"};
+const TYPE_ORDER = ["选择","填空","解答"];
+
+/* ---------------- 状态 ---------------- */
+const state = {grades:new Set([7,8,9]), topics:new Set(), order:'random'};
+
+/* ---------------- 初始化 UI ---------------- */
+function buildGradeChips(){
+  const row=document.getElementById('gradeRow'); row.innerHTML='';
+  [7,8,9].forEach(g=>{
+    const on=state.grades.has(g);
+    const lab=document.createElement('label'); lab.className='chip'+(on?' on':'');
+    lab.innerHTML=`<input type="checkbox" ${on?'checked':''} value="${g}"> ${GRADE_NAME[g]}`;
+    lab.querySelector('input').addEventListener('change',e=>{
+      if(e.target.checked){state.grades.add(g); lab.classList.add('on');}
+      else{state.grades.delete(g); lab.classList.remove('on');}
+      rebuildTopics(); updateStats();
+    });
+    row.appendChild(lab);
+  });
+}
+function rebuildTopics(){
+  const box=document.getElementById('topicBox'); box.innerHTML='';
+  const selGrades=[...state.grades].sort();
+  if(selGrades.length===0){box.innerHTML='<div class="topic-group">请先选择年级</div>';return;}
+  selGrades.forEach(g=>{
+    const grp=document.createElement('div'); grp.className='topic-group';
+    grp.textContent=GRADE_NAME[g]; box.appendChild(grp);
+    GRADE_TOPICS[g].forEach(t=>{
+      const item=document.createElement('label'); item.className='topic-item';
+      const on=state.topics.has(t)?'checked':'';
+      item.innerHTML=`<input type="checkbox" ${on} value="${t}"> ${t}`;
+      item.querySelector('input').addEventListener('change',e=>{
+        if(e.target.checked) state.topics.add(t); else state.topics.delete(t);
+        updateStats();
+      });
+      box.appendChild(item);
+    });
+  });
+}
+function currentPool(){
+  return BANK.filter(q=> state.grades.has(q.g) && (state.topics.size===0 || state.topics.has(q.t)));
+}
+function updateStats(){
+  const pool=currentPool();
+  const cnt={基础:0,中等:0,拔高:0};
+  pool.forEach(q=>cnt[q.d]++);
+  const total=pool.length;
+  document.getElementById('poolStats').innerHTML=
+    `当前题库共 <b>${total}</b> 题 ｜ 基础 <b>${cnt.基础}</b> ／ 中等 <b>${cnt.中等}</b> ／ 拔高 <b>${cnt.拔高}</b>`;
+}
+
+/* ---------------- 组卷算法 ---------------- */
+function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function pickFrom(pool,need){
+  const sh=shuffle(pool);
+  return sh.slice(0,Math.min(need,sh.length));
+}
+function generate(){
+  const pool=currentPool();
+  if(pool.length===0){alert('当前选择下题库为空，请调整年级或知识点。');return;}
+  let needE=+document.getElementById('dEasy').value||0;
+  let needM=+document.getElementById('dMid').value||0;
+  let needH=+document.getElementById('dHard').value||0;
+  const byDiff={基础:pool.filter(q=>q.d==='基础'),中等:pool.filter(q=>q.d==='中等'),拔高:pool.filter(q=>q.d==='拔高')};
+  let chosen=[];
+  const usedIds=new Set();
+  const take=(list,n)=>{let c=0;for(const q of shuffle(list)){if(c>=n)break;if(usedIds.has(q._i))continue;chosen.push(q);usedIds.add(q._i);c++;}return c;};
+  BANK.forEach((q,i)=>q._i=i); // 标记索引
+  let gotE=take(byDiff.基础,needE), gotM=take(byDiff.中等,needM), gotH=take(byDiff.拔高,needH);
+  let totalReq=needE+needM+needH;
+  let got=gotE+gotM+gotH;
+  // 不足部分从剩余题库补齐（任意难度）
+  if(got<totalReq){
+    const rest=pool.filter(q=>!usedIds.has(q._i));
+    const add=shuffle(rest).slice(0,totalReq-got);
+    add.forEach(q=>{chosen.push(q);usedIds.add(q._i);});
+    got=chosen.length;
+  }
+  // 按题型分组并随机排序，再顺序编号
+  if(state.order==='seq'){
+    const ti={}; [7,8,9].forEach(g=>GRADE_TOPICS[g].forEach((t,i)=>{ti[t]=i;}));
+    const dr={基础:0,中等:1,拔高:2};
+    chosen=chosen.sort((a,b)=> a.g-b.g || (ti[a.t]-ti[b.t]) || (dr[a.d]-dr[b.d]) || TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+  } else {
+    chosen=chosen.sort((a,b)=> TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type) || Math.random()-0.5);
+  }
+  renderPapers(chosen,{reqE:needE,reqM:needM,reqH:needH,gotE:gotE,gotM:gotM,gotH:gotH,requested:totalReq});
+}
+
+/* ---------------- 渲染双卷 ---------------- */
+function fmtOptions(q){
+  const letters=['A','B','C','D'];
+  return '<div class="opts">'+q.options.map((o,i)=>`<span class="opt">${letters[i]}. ${o}</span>`).join('')+'</div>';
+}
+function answerText(q){
+  if(q.type==='选择'){const li='ABCD'.indexOf(q.answer);return `${q.answer}. ${q.options[li]}`;}
+  return q.answer;
+}
+function renderPapers(list,info){
+  const full=+document.getElementById('fFull').value||100;
+  const school=document.getElementById('fSchool').value;
+  const cls=document.getElementById('fClass').value;
+  const name=document.getElementById('fName').value;
+  const no=document.getElementById('fNo').value;
+  const time=document.getElementById('fTime').value;
+  // 分值：选择3、填空3，解答均分剩余
+  const nSel=list.filter(q=>q.type==='选择').length;
+  const nFill=list.filter(q=>q.type==='填空').length;
+  const nSol=list.filter(q=>q.type==='解答').length;
+  let perSel=3,perFill=3;
+  let remain=full-(nSel*perSel+nFill*perFill);
+  let perSol=nSol>0?Math.max(1,Math.round(remain/nSol)):0;
+  if(remain<0){perSel=perFill=perSol=Math.max(1,Math.floor(full/list.length));}
+  const scoreOf=q=> q.type==='选择'?perSel : q.type==='填空'?perFill : perSol;
+
+  function buildBody(showAnswer){
+    let html='';
+    let no=0;
+    const secNames={选择:'一、选择题',填空:'二、填空题',解答:'三、解答题'};
+    TYPE_ORDER.forEach(tp=>{
+      const items=list.filter(q=>q.type===tp);
+      if(items.length===0)return;
+      let secScore=items.reduce((s,q)=>s+scoreOf(q),0);
+      html+=`<div class="sech">${secNames[tp]}（每题 ${scoreOf(items[0])} 分，共 ${secScore} 分）</div>`;
+      items.forEach(q=>{
+        no++;
+        let b=`<div class="q-stem">${q.stem}</div>`;
+        if(q.type==='选择') b+=fmtOptions(q);
+        if(q.type==='填空') b+=`<div>（答：<span class="blank"></span>）</div>`;
+        if(q.type==='解答') b+=`<div style="height:46px"></div>`;
+        if(showAnswer){
+          b+=`<div class="ans"><b>【答案】</b>${answerText(q)}`+
+             (q.solution?`　<b>【解析】</b>${q.solution}`:'')+`</div>`;
+        }
+        html+=`<div class="q"><div class="n">${no}.</div><div class="b">${b}</div></div>`;
+      });
+    });
+    return html;
+  }
+  function head(){
+    return `<div class="phead"><div class="ptitle">${school} 数学试卷</div></div>
+      <div class="pmeta"><span>班级：${cls}</span><span>姓名：${name}</span><span>学号：${no}</span><span>满分：${full}</span><span>时间：${time}</span></div>
+      <div class="pinfo"><span>一、请认真审题，仔细作答。</span><span>二、书写工整，步骤完整。</span></div>`;
+  }
+  const stu=document.getElementById('paperStu');
+  const tea=document.getElementById('paperTea');
+  stu.innerHTML=head()+buildBody(false);
+  let teaHtml=head()+buildBody(true);
+  // 教师版附加参考答案汇总
+  teaHtml+=`<div class="keytable"><div class="sech">参考答案</div>`;
+  let nn=0;
+  TYPE_ORDER.forEach(tp=>{
+    list.filter(q=>q.type===tp).forEach(q=>{nn++;teaHtml+=`<span style="display:inline-block;min-width:120px">${nn}. ${answerText(q)}</span>`;});
+  });
+  teaHtml+='</div>';
+  tea.innerHTML=teaHtml;
+
+  // 警告信息
+  let warn='';
+  if(info.gotE<info.reqE||info.gotM<info.reqM||info.gotH<info.reqH){
+    warn+=`⚠️ 题库不足，已自动从其他难度补齐：基础 ${info.gotE}/${info.reqE}，中等 ${info.gotM}/${info.reqM}，拔高 ${info.gotH}/${info.reqH}。`;
+  }
+  // 把警告放到预览区顶部
+  let w=document.getElementById('warnBox');
+  if(!w){w=document.createElement('div');w.id='warnBox';w.className='warn nonprint';document.getElementById('previewArea').parentNode.insertBefore(w,document.getElementById('previewArea'));}
+  w.style.display=warn?'block':'none'; w.textContent=warn;
+
+  // 默认显示学生版
+  renderMath();
+  switchView('student');
+}
+function renderMath(){
+  if(!window.renderMathInElement) return;
+  ['paperStu','paperTea'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) try{ renderMathInElement(el,{delimiters:[{left:'$',right:'$',display:false},{left:'$$',right:'$$',display:true}],throwOnError:false}); }catch(e){}
+  });
+}
+function toast(msg){
+  var t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(function(){ t.classList.add('show'); });
+  setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ if(t.parentNode)t.parentNode.removeChild(t); },250); },1900);
+}
+
+/* ---------------- 视图切换 ---------------- */
+function switchView(v){
+  document.getElementById('tabStu').classList.toggle('on',v==='student');
+  document.getElementById('tabTea').classList.toggle('on',v==='teacher');
+  document.getElementById('paperStu').classList.toggle('hidden',v!=='student');
+  document.getElementById('paperTea').classList.toggle('hidden',v!=='teacher');
+}
+document.getElementById('tabStu').addEventListener('click',()=>switchView('student'));
+document.getElementById('tabTea').addEventListener('click',()=>switchView('teacher'));
+
+/* ---------------- 打印 / PDF ---------------- */
+document.getElementById('printStu').addEventListener('click',()=>{switchView('student');document.body.className='print-stu';window.print();document.body.className='';});
+document.getElementById('printTea').addEventListener('click',()=>{switchView('teacher');document.body.className='print-tea';window.print();document.body.className='';});
+
+/* ---------------- Word (.docx) 导出 ---------------- */
+function escapeXml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function crc32(bytes){
+  let table=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);table[n]=c>>>0;}
+  let crc=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)crc=table[(crc^bytes[i])&0xFF]^(crc>>>8);
+  return (crc^0xFFFFFFFF)>>>0;
+}
+function buildZip(files){
+  const enc=new TextEncoder();let parts=[];let central=[];let offset=0;
+  for(const f of files){
+    const nameBytes=enc.encode(f.name);const data=f.data;const crc=crc32(data);
+    const local=new Uint8Array(30+nameBytes.length+data.length);const dv=new DataView(local.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint16(6,0,true);dv.setUint16(8,0,true);
+    dv.setUint16(10,0,true);dv.setUint16(12,0,true);dv.setUint32(14,crc,true);
+    dv.setUint32(18,data.length,true);dv.setUint32(22,data.length,true);
+    dv.setUint16(26,nameBytes.length,true);dv.setUint16(28,0,true);
+    local.set(nameBytes,30);local.set(data,30+nameBytes.length);parts.push(local);
+    const cen=new Uint8Array(46+nameBytes.length);const cv=new DataView(cen.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint16(8,0,true);
+    cv.setUint16(10,0,true);cv.setUint16(12,0,true);cv.setUint16(14,0,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);
+    cv.setUint16(28,nameBytes.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);
+    cv.setUint16(34,0,true);cv.setUint16(36,0,true);cv.setUint32(38,0,true);cv.setUint32(42,offset,true);
+    cen.set(nameBytes,46);central.push(cen);offset+=local.length;
+  }
+  const centralSize=central.reduce((s,c)=>s+c.length,0);
+  const end=new Uint8Array(22);const ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);
+  ev.setUint16(8,files.length,true);ev.setUint16(10,files.length,true);
+  ev.setUint32(12,centralSize,true);ev.setUint32(16,offset,true);ev.setUint16(20,0,true);
+  let total=offset+centralSize+end.length;const out=new Uint8Array(total);let pos=0;
+  for(const p of parts){out.set(p,pos);pos+=p.length;}
+  for(const c of central){out.set(c,pos);pos+=c.length;}
+  out.set(end,pos);return out;
+}
+function exportDocx(container,filename){
+  const text=container.innerText.replace(/\r/g,'');
+  const lines=text.split('\n');
+  let body='';
+  for(const line of lines){
+    const t=line.trim();
+    if(t==='') body+='<w:p/>';
+    else body+=`<w:p><w:r><w:t xml:space="preserve">${escapeXml(t)}</w:t></w:r></w:p>`;
+  }
+  const documentXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`;
+  const contentTypes=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+  const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+  const docRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+  const enc=new TextEncoder();
+  const files=[
+    {name:'[Content_Types].xml',data:enc.encode(contentTypes)},
+    {name:'_rels/.rels',data:enc.encode(rels)},
+    {name:'word/document.xml',data:enc.encode(documentXml)},
+    {name:'word/_rels/document.xml.rels',data:enc.encode(docRels)}
+  ];
+  const zip=buildZip(files);
+  const blob=new Blob([zip],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+document.getElementById('docxStu').addEventListener('click',()=>exportDocx(document.getElementById('paperStu'),'数学试卷_学生版.docx'));
+document.getElementById('docxTea').addEventListener('click',()=>exportDocx(document.getElementById('paperTea'),'数学试卷_教师版.docx'));
+
+/* ---------------- 本地存储 ---------------- */
+const LS_KEY='mathPaperSettings';
+function saveSettings(){
+  const s={
+    grades:[...state.grades],topics:[...state.topics],
+    dEasy:document.getElementById('dEasy').value,dMid:document.getElementById('dMid').value,dHard:document.getElementById('dHard').value,
+    fSchool:document.getElementById('fSchool').value,fClass:document.getElementById('fClass').value,
+    fName:document.getElementById('fName').value,fNo:document.getElementById('fNo').value,
+    fFull:document.getElementById('fFull').value,fTime:document.getElementById('fTime').value
+  };
+  try{localStorage.setItem(LS_KEY,JSON.stringify(s));}catch(e){}
+}
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem(LS_KEY)||'null');if(!s)return;
+    state.grades=new Set(s.grades||[7,8,9]);
+    state.topics=new Set(s.topics||[]);
+    if(s.dEasy!=null)document.getElementById('dEasy').value=s.dEasy;
+    if(s.dMid!=null)document.getElementById('dMid').value=s.dMid;
+    if(s.dHard!=null)document.getElementById('dHard').value=s.dHard;
+    ['fSchool','fClass','fName','fNo','fFull','fTime'].forEach(k=>{if(s[k]!=null)document.getElementById(k).value=s[k];});
+  }catch(e){}
+}
+['dEasy','dMid','dHard','fSchool','fClass','fName','fNo','fFull','fTime'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{updateStats();saveSettings();});
+});
+
+/* ---------------- 按钮 ---------------- */
+document.getElementById('genBtn').addEventListener('click',()=>{generate();saveSettings();});
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  localStorage.removeItem(LS_KEY);location.reload();
+});
+
+/* ---------------- 卷型模板 / 出卷顺序 ---------------- */
+var TPL={week:[6,4,0],month:[10,10,4],final:[14,14,8]};
+document.getElementById('tpl').addEventListener('change',function(){
+  var v=this.value;
+  if(TPL[v]){
+    document.getElementById('dEasy').value=TPL[v][0];
+    document.getElementById('dMid').value=TPL[v][1];
+    document.getElementById('dHard').value=TPL[v][2];
+    updateStats(); saveSettings();
+  }
+});
+document.querySelectorAll('input[name=order]').forEach(function(r){
+  r.addEventListener('change',function(){ state.order=this.value; });
+});
+state.order=document.querySelector('input[name=order]:checked').value;
+
+/* ---------------- 启动 ---------------- */
+loadSettings();
+buildGradeChips();
+rebuildTopics();
+updateStats();
+// 首次渲染交由会员门禁 boot 决定（已激活则出卷，未激活显示激活层）
+</script>
+<!-- ===== 会员系统 v2：中台签发令牌 + 在线校验门禁（独立脚本块） ===== -->
+<script>
+// 会员门禁：本工具只写死中台地址与 system id，绝不包含任何 ADMIN_TOKEN / SERVER_SECRET
+const ACT_BACKEND='https://hjy3-member-hub.app.workbuddy.host';
+const ACT_SYSTEM='mathpaper';
+const ACT_STORE='mathpaper_activation';
+const ACT_FP_KEY='mathpaper_fp';
+const ACT_TTL=24*60*60*1000;
+const ACT_OFFLINE_GRACE=3*24*60*60*1000;
+
+function getActivation(){try{return JSON.parse(localStorage.getItem(ACT_STORE)||'null');}catch(e){return null;}}
+function setActivation(a){try{localStorage.setItem(ACT_STORE,JSON.stringify(a));}catch(e){}}
+function clearActivation(){try{localStorage.removeItem(ACT_STORE);}catch(e){}}
+function fmtExp(exp){return exp? new Date(exp).toLocaleDateString('zh-CN'):'永久';}
+function deviceFp(){
+  var fp=null;
+  try{fp=localStorage.getItem(ACT_FP_KEY);}catch(e){}
+  if(!fp){fp='dev_'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);try{localStorage.setItem(ACT_FP_KEY,fp);}catch(e){}}
+  return fp;
+}
+function localToken(){
+  var a=getActivation();
+  if(!a||!a.token)return null;
+  if(a.system&&a.system!==ACT_SYSTEM)return null;
+  if(a.expire&&a.expire<=Date.now())return null;
+  return a.token;
+}
+function isActivated(){
+  var a=getActivation();
+  return !!(a&&a.token&&(!a.expire||a.expire>Date.now())&&(!a.system||a.system===ACT_SYSTEM));
+}
+function renderMember(){
+  var badge=document.getElementById('memberBadge');
+  var on=isActivated();
+  if(badge)badge.style.display=on?'inline-block':'none';
+}
+function tokSig(t){
+  var h=5381,i=0;
+  t=String(t||'');
+  for(i=0;i<t.length;i++){h=((h<<5)+h+t.charCodeAt(i))>>>0;}
+  return t.length.toString(36)+'_'+h.toString(36);
+}
+function verifyToken(force){
+  var a=getActivation();
+  var token=localToken();
+  if(!token)return Promise.resolve({ok:false,reason:'no_token'});
+  if(!force&&a.verifyAt&&a.verified===true&&a.tokenSig&&a.tokenSig===tokSig(token)&&(Date.now()-a.verifyAt)<ACT_TTL){
+    return Promise.resolve({ok:true,cached:true,level:a.plan,expireAt:a.expire});
+  }
+  var url=ACT_BACKEND+'/api/verify?token='+encodeURIComponent(token)+'&fp='+encodeURIComponent(deviceFp())+'&system='+encodeURIComponent(ACT_SYSTEM);
+  return fetch(url,{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j&&j.ok){
+        a.plan=j.level||a.plan; a.expire=j.expireAt||0; a.system=ACT_SYSTEM; a.token=token;
+        a.verified=true; a.verifyAt=Date.now(); a.tokenSig=tokSig(token); a.lastOnlineAt=Date.now(); a.offlineSince=0;
+        setActivation(a);
+        return {ok:true,level:a.plan,expireAt:a.expire};
+      }
+      clearActivation();
+      return {ok:false,reason:(j&&j.reason)||'denied',msg:(j&&j.msg)||''};
+    })
+    .catch(function(){
+      var b=getActivation();
+      if(!b||!b.token)return {ok:false,reason:'offline_no_cache'};
+      if(b.tokenSig!==tokSig(b.token))return {ok:false,reason:'offline_untrusted'};
+      var since=b.lastOnlineAt||b.verifyAt||b.at||0;
+      if(!since)return {ok:false,reason:'offline_not_activated'};
+      var off=(Date.now()-since)<ACT_OFFLINE_GRACE;
+      if(off&&(!b.expire||b.expire>Date.now())){
+        if(!b.offlineSince){b.offlineSince=Date.now();setActivation(b);}
+        return {ok:true,offline:true,level:b.plan,expireAt:b.expire};
+      }
+      return {ok:false,reason:'offline_expired',msg:'离线时间过长，请联网后重试'};
+    });
+}
+// 门禁入口：所有付费功能都走这里；本工具为整体门禁，故仅 openAct / boot 使用
+function guardFeature(feature,allowed,denied){
+  if(!localToken()){ toast('「'+feature+'」为会员专享，点右上角👑会员激活'); openAct(); if(denied)denied(); return; }
+  if(typeof allowed==='function')toast('正在校验会员…');
+  verifyToken(false).then(function(v){
+    if(v.ok){ if(v.offline)toast('离线模式 · '+(v.level||'会员')); if(allowed)allowed(); }
+    else { var reasons={no_token:'请先激活会员',bad_token:'会员凭证无效，请重新激活',legacy_token:'会员凭证版本过旧，请重新激活',blacklisted:'该会员已被停用，请联系客服',wrong_system:'该激活码不适用于当前系统',device_mismatch:'会员与当前设备不匹配，请在本设备使用',offline_expired:'离线时间过长，请联网后重试',offline_untrusted:'会员校验未通过，请联网后重试',offline_no_cache:'请先联网激活会员',offline_not_activated:'请先联网激活会员',denied:'会员校验未通过'};
+      toast(reasons[v.reason]||v.msg||'会员校验未通过'); openAct(); if(denied)denied(); }
+  });
+}
+function openAct(){
+  var m=document.getElementById('actModal'); if(m)m.classList.add('show');
+  renderMember();
+  var inp=document.getElementById('actInput'); if(inp){inp.value=''; try{inp.focus();}catch(e){}}
+  var msg=document.getElementById('actMsg'); if(msg)msg.textContent='';
+}
+function doActivate(){
+  var el=document.getElementById('actInput');
+  var code=el?el.value.trim().toUpperCase():'';
+  var msg=document.getElementById('actMsg');
+  if(!code){ if(msg){msg.style.color='#e33';msg.textContent='请输入激活码';} return; }
+  if(msg){msg.style.color='';msg.textContent='联网验证中…';}
+  var fp=deviceFp();
+  fetch(ACT_BACKEND+'/api/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code,fp:fp,system:ACT_SYSTEM})})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j.ok){
+        setActivation({plan:j.level,expire:j.expireAt||0,system:ACT_SYSTEM,token:j.token,at:Date.now(),verified:true,verifyAt:Date.now(),tokenSig:tokSig(j.token),lastOnlineAt:Date.now(),offlineSince:0});
+        if(msg){msg.style.color='#1a9';msg.textContent='✅ 激活成功！'+j.level+(j.expireAt?(' · 至 '+fmtExp(j.expireAt)):' · 永久');}
+        renderMember(); toast('会员已激活');
+        var mm=document.getElementById('actModal'); if(mm)mm.classList.remove('show');
+        generate();
+      }else{
+        var reasons={not_found:'激活码无效，请检查后重试',void:'该激活码已作废',already_used:'该激活码已被使用（一码一用）',blacklisted:'该激活码已被停用',wrong_system:'该激活码不适用于当前系统'};
+        if(msg){msg.style.color='#e33';msg.textContent='❌ '+(reasons[j.reason]||'激活失败');}
+      }
+    })
+    .catch(function(){if(msg){msg.style.color='#e33';msg.textContent='⚠️ 联网验证失败，请检查网络后重试';}});
+}
+// === 启动引导：已激活则出卷，未激活显示激活层 ===
+function appBoot(){
+  renderMember();
+  var modal=document.getElementById('actModal');
+  if(isActivated() && localToken()){
+    if(modal)modal.classList.remove('show');
+    generate();
+    verifyToken(true).then(function(v){ if(!v.ok){ if(modal)modal.classList.add('show'); toast('会员状态已变更，请重新激活'); } });
+  } else {
+    if(modal)modal.classList.add('show');
+  }
+}
+appBoot();
+</script>
+</body>
+</html>
